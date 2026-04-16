@@ -15,7 +15,7 @@ class MyApp extends StatelessWidget {
       title: 'Esports Match Reminder',
       debugShowCheckedModeBanner: false,
       theme: ThemeData.dark().copyWith(
-        scaffoldBackgroundColor: const Color(0xFF120202),
+        scaffoldBackgroundColor: const Color.fromARGB(255, 2, 18, 4),
         colorScheme: ColorScheme.fromSeed(seedColor: Colors.red.shade700),
       ),
       home: const HomeScreen(),

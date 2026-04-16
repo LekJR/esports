@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'dart:async';
+import 'dart:ui';
 import '../models/match_reminder.dart';
 import '../widgets/match_card.dart';
 import '../services/notification_service.dart';
@@ -146,59 +147,66 @@ class _HomeScreenState extends State<HomeScreen> {
           horizontal: 24,
           vertical: _isTitleVisible ? 20 : 12,
         ),
-        child: Row(
-          crossAxisAlignment: CrossAxisAlignment.center,
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
           children: [
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Text(
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.center,
+              children: [
+                Expanded(
+                  child: Text(
                     'Discover',
                     style: TextStyle(
                       color: Colors.white,
-                      fontSize: _isTitleVisible ? 48 : 28,
+                      fontSize: _isTitleVisible ? 48 : 38,
                       fontWeight: FontWeight.bold,
                     ),
                   ),
-                  if (_isTitleVisible) ...[
-                    const SizedBox(height: 6),
-                    const Text(
-                      'Match reminders',
-                      style: TextStyle(
-                        color: Color.fromARGB(255, 255, 255, 255),
-                        fontSize: 20,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                  ],
-                ],
-              ),
-            ),
-            GestureDetector(
-              onTap: _addMatch,
-              child: Container(
-                decoration: BoxDecoration(
-                  color: Colors.red.shade700,
-                  borderRadius: BorderRadius.circular(16),
                 ),
-                padding: const EdgeInsets.all(14),
-                child: const Icon(Icons.add, color: Colors.white),
-              ),
+                GestureDetector(
+                  onTap: _addMatch,
+                  child: Container(
+                    decoration: BoxDecoration(
+                      color: Colors.red.shade700,
+                      borderRadius: BorderRadius.circular(16),
+                    ),
+                    padding: const EdgeInsets.all(14),
+                    child: const Icon(Icons.add, color: Colors.white),
+                  ),
+                ),
+              ],
             ),
+            if (_isTitleVisible) ...[
+              const SizedBox(height: 6),
+              const Align(
+                alignment: Alignment.centerLeft,
+                child: Text(
+                  'Match reminders',
+                  style: TextStyle(
+                    color: Color.fromARGB(255, 255, 255, 255),
+                    fontSize: 20,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+              ),
+            ],
           ],
         ),
       ),
     );
   }
 
-  SliverList _buildMatchSliver(List<MatchReminder> matches) {
+  SliverList _buildMatchSliver(
+    List<MatchReminder> matches, {
+    double itemSpacing = 16,
+  }) {
     return SliverList(
       delegate: SliverChildBuilderDelegate((context, index) {
         final match = matches[index];
         return Padding(
-          padding: const EdgeInsets.only(bottom: 20),
+          padding: EdgeInsets.only(
+            bottom: index == matches.length - 1 ? 0 : itemSpacing,
+          ),
           child: MatchCard(
             match: match,
             onTeamAChanged: (value) {
@@ -215,6 +223,105 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
+  Widget _buildMatchSection({
+    required String title,
+    required List<MatchReminder> matches,
+    double topSpacing = 16,
+    double bottomSpacing = 0,
+  }) {
+    return SliverMainAxisGroup(
+      slivers: [
+        SliverPersistentHeader(
+          pinned: true,
+          delegate: _SectionHeaderDelegate(title: title),
+        ),
+        if (topSpacing > 0)
+          SliverToBoxAdapter(child: SizedBox(height: topSpacing)),
+        SliverPadding(
+          padding: const EdgeInsets.symmetric(horizontal: 16),
+          sliver: _buildMatchSliver(matches),
+        ),
+        if (bottomSpacing > 0)
+          SliverToBoxAdapter(child: SizedBox(height: bottomSpacing)),
+      ],
+    );
+  }
+
+  Widget _buildBottomDock() {
+    return Container(
+      margin: const EdgeInsets.fromLTRB(24, 4, 24, 18),
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(28),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.28),
+            blurRadius: 28,
+            offset: const Offset(0, 14),
+          ),
+          BoxShadow(
+            color: Colors.red.withOpacity(0.1),
+            blurRadius: 22,
+            offset: const Offset(0, 8),
+          ),
+        ],
+      ),
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(28),
+        child: BackdropFilter(
+          filter: ImageFilter.blur(sigmaX: 14, sigmaY: 14),
+          child: Container(
+            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 9),
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(28),
+              gradient: LinearGradient(
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+                colors: [
+                  Colors.white.withOpacity(0.09),
+                  const Color(0xFF210505).withOpacity(0.56),
+                ],
+              ),
+              border: Border.all(
+                color: Colors.white.withOpacity(0.12),
+                width: 0.9,
+              ),
+            ),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Container(
+                  height: 1,
+                  margin: const EdgeInsets.symmetric(horizontal: 26),
+                  decoration: BoxDecoration(
+                    gradient: LinearGradient(
+                      colors: [
+                        Colors.transparent,
+                        Colors.white.withOpacity(0.24),
+                        Colors.transparent,
+                      ],
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 8),
+                const Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                  children: [
+                    _DockIcon(icon: Icons.home_rounded),
+                    _DockIcon(
+                      icon: Icons.explore_rounded,
+                      isActive: true,
+                    ),
+                    _DockIcon(icon: Icons.person_rounded),
+                  ],
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -225,94 +332,109 @@ class _HomeScreenState extends State<HomeScreen> {
             gradient: LinearGradient(
               begin: Alignment.topCenter,
               end: Alignment.bottomCenter,
-              colors: [Color.fromARGB(255, 132, 0, 0), Color(0xFF0B0505)],
+              colors: [Color.fromARGB(255, 101, 0, 0), Color.fromARGB(255, 0, 0, 0)],
             ),
           ),
-          child: Column(
+          child: Stack(
             children: [
-              _buildTopBar(),
-              Expanded(
-                child: RefreshIndicator(
-                  onRefresh: _refreshMatches,
-                  color: Colors.red,
-                  backgroundColor: Colors.black,
-                  child: NotificationListener<ScrollNotification>(
-                    onNotification: (notification) {
-                      if (notification is ScrollUpdateNotification) {
-                        _onScroll(notification.metrics.pixels);
-                      }
-                      return false;
-                    },
-                    child: CustomScrollView(
-                      controller: _scrollController,
-                      physics: const AlwaysScrollableScrollPhysics(),
-                      slivers: [
-                        if (_ongoingMatches.isNotEmpty) ...[
-                          SliverPersistentHeader(
-                            pinned: true,
-                            delegate: _SectionHeaderDelegate(
-                              title: 'Ongoing matches',
+              Column(
+                children: [
+                  _buildTopBar(),
+                  Expanded(
+                    child: RefreshIndicator(
+                      onRefresh: _refreshMatches,
+                      color: Colors.red,
+                      backgroundColor: Colors.black,
+                      child: NotificationListener<ScrollNotification>(
+                        onNotification: (notification) {
+                          if (notification is ScrollUpdateNotification) {
+                            _onScroll(notification.metrics.pixels);
+                          }
+                          return false;
+                        },
+                        child: CustomScrollView(
+                          controller: _scrollController,
+                          physics: const AlwaysScrollableScrollPhysics(),
+                          slivers: [
+                            if (_ongoingMatches.isNotEmpty)
+                              _buildMatchSection(
+                                title: 'Ongoing matches',
+                                matches: _ongoingMatches,
+                                topSpacing: 16,
+                                bottomSpacing: 20,
+                              ),
+                            if (_upcomingMatches.isNotEmpty)
+                              _buildMatchSection(
+                                title: 'Upcoming matches',
+                                matches: _upcomingMatches,
+                                topSpacing: 16,
+                              ),
+                            SliverPadding(
+                              padding:
+                                  const EdgeInsets.symmetric(horizontal: 16),
+                              sliver: SliverToBoxAdapter(
+                                child: const SizedBox(height: 132),
+                              ),
                             ),
-                          ),
-                          SliverPadding(
-                            padding: const EdgeInsets.symmetric(horizontal: 16),
-                            sliver: _buildMatchSliver(_ongoingMatches),
-                          ),
-                          SliverPadding(
-                            padding: const EdgeInsets.symmetric(horizontal: 16),
-                            sliver: SliverToBoxAdapter(
-                              child: const SizedBox(height: 32),
-                            ),
-                          ),
-                        ],
-                        if (_upcomingMatches.isNotEmpty) ...[
-                          SliverPersistentHeader(
-                            pinned: true,
-                            delegate: _SectionHeaderDelegate(
-                              title: 'Upcoming matches',
-                            ),
-                          ),
-                          SliverPadding(
-                            padding: const EdgeInsets.symmetric(horizontal: 16),
-                            sliver: _buildMatchSliver(_upcomingMatches),
-                          ),
-                        ],
-                        SliverPadding(
-                          padding: const EdgeInsets.symmetric(horizontal: 16),
-                          sliver: SliverToBoxAdapter(
-                            child: const SizedBox(height: 24),
-                          ),
+                          ],
                         ),
-                      ],
+                      ),
                     ),
                   ),
-                ),
+                ],
               ),
-              const SizedBox(height: 8),
-              Container(
-                margin: const EdgeInsets.symmetric(
-                  horizontal: 24,
-                  vertical: 12,
-                ),
-                padding: const EdgeInsets.symmetric(vertical: 14),
-                decoration: BoxDecoration(
-                  color: Colors.transparent,
-                  borderRadius: BorderRadius.circular(32),
-                  border: Border.all(color: Colors.red.shade700, width: 1.5),
-                ),
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                  children: const [
-                    Icon(Icons.home, color: Colors.white, size: 30),
-                    Icon(Icons.explore, color: Colors.white, size: 30),
-                    Icon(Icons.person, color: Colors.white, size: 30),
-                  ],
-                ),
+              Align(
+                alignment: Alignment.bottomCenter,
+                child: _buildBottomDock(),
               ),
             ],
           ),
         ),
       ),
+    );
+  }
+}
+
+class _DockIcon extends StatelessWidget {
+  final IconData icon;
+  final bool isActive;
+
+  const _DockIcon({
+    required this.icon,
+    this.isActive = false,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    if (isActive) {
+      return Container(
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+        decoration: BoxDecoration(
+          color: Colors.white.withOpacity(0.09),
+          borderRadius: BorderRadius.circular(18),
+          border: Border.all(
+            color: Colors.white.withOpacity(0.1),
+          ),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.red.withOpacity(0.16),
+              blurRadius: 14,
+              offset: const Offset(0, 5),
+            ),
+          ],
+        ),
+        child: Icon(
+          icon,
+          color: Colors.white,
+          size: 26,
+        ),
+      );
+    }
+
+    return Icon(
+      icon,
+      color: Colors.white.withOpacity(0.72),
+      size: 26,
     );
   }
 }
@@ -330,11 +452,18 @@ class _SectionHeaderDelegate extends SliverPersistentHeaderDelegate {
   ) {
     return Container(
       decoration: BoxDecoration(
-        color: const Color.fromARGB(255, 0, 0, 0),
+        gradient: LinearGradient(
+          begin: Alignment.topCenter,
+          end: Alignment.bottomCenter,
+          colors: [
+            const Color(0xFF180809).withOpacity(0.9),
+            const Color(0xFF0E0F12).withOpacity(0.62),
+          ],
+        ),
         borderRadius: BorderRadius.circular(0),
         border: Border(
-        top: BorderSide(color: const Color.fromARGB(255, 255, 255, 255), width: 1.0),
-        bottom: BorderSide(color: const Color.fromARGB(255, 255, 255, 255), width: 1.0),
+        top: BorderSide(color: Colors.white.withOpacity(0.02), width: 0.8),
+        bottom: BorderSide(color: Colors.white.withOpacity(0.05), width: 0.8),
         ),
       ),
       padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),

@@ -22,26 +22,22 @@ class MatchCard extends StatefulWidget {
 }
 
 class _MatchCardState extends State<MatchCard> {
-  late final TextEditingController _teamAController;
-  late final TextEditingController _teamBController;
-
-  @override
-  void initState() {
-    super.initState();
-    _teamAController = TextEditingController(text: widget.match.teamA);
-    _teamBController = TextEditingController(text: widget.match.teamB);
-  }
+  static const List<String> _topValorantTeams = [
+    'G2',
+    'NRG',
+    'T1',
+    'SRG',
+    'PRX',  
+    'DRX',
+    'TL',
+    'BBL',
+    'FNC',
+    'MIB',
+  ];
 
   @override
   void didUpdateWidget(covariant MatchCard oldWidget) {
     super.didUpdateWidget(oldWidget);
-  }
-
-  @override
-  void dispose() {
-    _teamAController.dispose();
-    _teamBController.dispose();
-    super.dispose();
   }
 
   String get formattedTime {
@@ -49,10 +45,89 @@ class _MatchCardState extends State<MatchCard> {
     return time.format(context);
   }
 
+  String? _dropdownValueFor(String team) {
+    if (_topValorantTeams.contains(team)) {
+      return team;
+    }
+    return null;
+  }
+
+  Widget _buildTeamDropdown({
+    required String hint,
+    required String currentValue,
+    required bool enabled,
+    required ValueChanged<String> onChanged,
+  }) {
+    return DropdownButtonFormField<String>(
+      initialValue: _dropdownValueFor(currentValue),
+      onChanged: enabled
+          ? (value) {
+              if (value != null) {
+                onChanged(value);
+              }
+            }
+          : null,
+      isExpanded: true,
+      alignment: Alignment.center,
+      icon: enabled
+          ? const Icon(Icons.keyboard_arrow_down_rounded, color: Colors.white70)
+          : const SizedBox.shrink(),
+      dropdownColor: const Color(0xFF2F0A0A),
+      style: const TextStyle(
+        color: Colors.white,
+        fontSize: 18,
+        fontWeight: FontWeight.w600,
+      ),
+      decoration: const InputDecoration(
+        isDense: true,
+        contentPadding: EdgeInsets.symmetric(vertical: 12),
+        border: InputBorder.none,
+      ),
+      hint: Text(
+        hint,
+        textAlign: TextAlign.center,
+        style: const TextStyle(color: Colors.white54),
+      ),
+      selectedItemBuilder: (context) {
+        return _topValorantTeams
+            .map(
+              (team) => Center(
+                child: Text(
+                  team,
+                  textAlign: TextAlign.center,
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontSize: 18,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ),
+            )
+            .toList();
+      },
+      items: _topValorantTeams
+          .map(
+            (team) => DropdownMenuItem<String>(
+              value: team,
+              alignment: Alignment.center,
+              child: Center(
+                child: Text(
+                  team,
+                  textAlign: TextAlign.center,
+                ),
+              ),
+            ),
+          )
+          .toList(),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
+    final teamsLocked =
+        widget.match.teamA.isNotEmpty && widget.match.teamB.isNotEmpty;
+
     return Container(
-      margin: const EdgeInsets.symmetric(vertical: 8),
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
         color: const Color(0xFF3B0E0E),
@@ -94,35 +169,101 @@ class _MatchCardState extends State<MatchCard> {
               ),
             ],
           ),
-          const SizedBox(height: 10),
-          TextField(
-            controller: _teamAController,
-            onChanged: widget.onTeamAChanged,
-            style: const TextStyle(color: Colors.white),
-            decoration: const InputDecoration(
-              hintText: 'Team A',
-              hintStyle: TextStyle(color: Colors.white54),
-              border: InputBorder.none,
-            ),
-          ),
-          Center(
-            child: Text(
-              'VS',
-              style: TextStyle(
-                color: Colors.white,
-                fontWeight: FontWeight.bold,
-              ),
-            ),
-          ),
-          TextField(
-            controller: _teamBController,
-            onChanged: widget.onTeamBChanged,
-            style: const TextStyle(color: Colors.white),
-            decoration: const InputDecoration(
-              hintText: 'Team B',
-              hintStyle: TextStyle(color: Colors.white54),
-              border: InputBorder.none,
-            ),
+          const SizedBox(height: 20),
+          Padding(
+            padding: const EdgeInsets.symmetric(vertical: 12),
+            child: teamsLocked
+                ? Row(
+                    children: [
+                      const SizedBox(width: 40),
+                      Expanded(
+                        child: Row(
+                          children: [
+                            Expanded(
+                              child: Text(
+                                widget.match.teamA,
+                                textAlign: TextAlign.center,
+                                style: const TextStyle(
+                                  color: Colors.white,
+                                  fontSize: 18,
+                                  fontWeight: FontWeight.w600,
+                                ),
+                              ),
+                            ),
+                            const Padding(
+                              padding: EdgeInsets.symmetric(horizontal: 8),
+                              child: Text(
+                                'VS',
+                                textAlign: TextAlign.center,
+                                style: TextStyle(
+                                  color: Colors.white,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                            ),
+                            Expanded(
+                              child: Text(
+                                widget.match.teamB,
+                                textAlign: TextAlign.center,
+                                style: const TextStyle(
+                                  color: Colors.white,
+                                  fontSize: 18,
+                                  fontWeight: FontWeight.w600,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      SizedBox(
+                        width: 40,
+                        child: IconButton(
+                          onPressed: () {
+                            widget.onTeamAChanged('');
+                            widget.onTeamBChanged('');
+                          },
+                          icon: const Icon(
+                            Icons.restart_alt_rounded,
+                            color: Colors.white70,
+                            size: 20,
+                          ),
+                          tooltip: 'Reset teams',
+                          splashRadius: 20,
+                        ),
+                      ),
+                    ],
+                  )
+                : Row(
+                    crossAxisAlignment: CrossAxisAlignment.center,
+                    children: [
+                      Expanded(
+                        child: _buildTeamDropdown(
+                          hint: 'Team A',
+                          currentValue: widget.match.teamA,
+                          enabled: true,
+                          onChanged: widget.onTeamAChanged,
+                        ),
+                      ),
+                      const Padding(
+                        padding: EdgeInsets.symmetric(horizontal: 8),
+                        child: Text(
+                          'VS',
+                          style: TextStyle(
+                            color: Colors.white,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                      ),
+                      Expanded(
+                        child: _buildTeamDropdown(
+                          hint: 'Team B',
+                          currentValue: widget.match.teamB,
+                          enabled: true,
+                          onChanged: widget.onTeamBChanged,
+                        ),
+                      ),
+                    ],
+                  ),
           ),
           const SizedBox(height: 12),
           GestureDetector(
