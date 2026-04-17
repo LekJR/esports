@@ -1,3 +1,4 @@
+import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import '../models/match_reminder.dart';
 
@@ -43,6 +44,97 @@ class _MatchCardState extends State<MatchCard> {
   String get formattedTime {
     final time = TimeOfDay.fromDateTime(widget.match.scheduledTime);
     return time.format(context);
+  }
+
+  Future<void> _showTimeWheelPicker() async {
+    final now = DateTime.now();
+    DateTime normalizeSelectedTime(DateTime value) {
+      final todayAtSelectedTime = DateTime(
+        now.year,
+        now.month,
+        now.day,
+        value.hour,
+        value.minute,
+      );
+      return todayAtSelectedTime.isBefore(now)
+          ? todayAtSelectedTime.add(const Duration(days: 1))
+          : todayAtSelectedTime;
+    }
+
+    var selectedTime = normalizeSelectedTime(widget.match.scheduledTime);
+
+    await showCupertinoModalPopup<void>(
+      context: context,
+      builder: (context) {
+        return Container(
+          height: 320,
+          decoration: const BoxDecoration(
+            color: Color(0xFF120505),
+            borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+          ),
+          child: Column(
+            children: [
+              Padding(
+                padding: const EdgeInsets.fromLTRB(16, 12, 16, 8),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    CupertinoButton(
+                      padding: EdgeInsets.zero,
+                      onPressed: () => Navigator.of(context).pop(),
+                      child: const Text(
+                        'Cancel',
+                        style: TextStyle(color: Colors.white70),
+                      ),
+                    ),
+                    const Text(
+                      'Select match time',
+                      style: TextStyle(
+                        decoration: TextDecoration.none,
+                        color: Colors.white,
+                        fontSize: 20,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                    CupertinoButton(
+                      padding: EdgeInsets.zero,
+                      onPressed: () {
+                        widget.onTimeChanged(selectedTime);
+                        Navigator.of(context).pop();
+                      },
+                      child: const Text(
+                        'Done',
+                        style: TextStyle(
+                          color: Colors.redAccent,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const Divider(height: 1, color: Colors.white12),
+              Expanded(
+                child: CupertinoTheme(
+                  data: const CupertinoThemeData(
+                    brightness: Brightness.dark,
+                  ),
+                  child: CupertinoDatePicker(
+                    mode: CupertinoDatePickerMode.time,
+                    initialDateTime: widget.match.scheduledTime,
+                    use24hFormat: false,
+                    minuteInterval: 1,
+                    onDateTimeChanged: (value) {
+                      selectedTime = normalizeSelectedTime(value);
+                    },
+                  ),
+                ),
+              ),
+            ],
+          ),
+        );
+      },
+    );
   }
 
   String? _dropdownValueFor(String team) {
@@ -267,44 +359,7 @@ class _MatchCardState extends State<MatchCard> {
           ),
           const SizedBox(height: 12),
           GestureDetector(
-            onTap: () async {
-              final time = await showTimePicker(
-                context: context,
-                initialTime: TimeOfDay.fromDateTime(widget.match.scheduledTime),
-                builder: (context, child) {
-                  return Theme(
-                    data: Theme.of(context).copyWith(
-                      timePickerTheme: const TimePickerThemeData(
-                        backgroundColor: Colors.black,
-                        dialHandColor: Colors.red,
-                        dialBackgroundColor: Color(0xFF2F0A0A),
-                        hourMinuteTextColor: Colors.white,
-                        hourMinuteTextStyle: TextStyle(
-                          color: Colors.white,
-                          fontSize: 32,
-                          fontWeight: FontWeight.bold,
-                        ),
-                        dayPeriodTextColor: Colors.white,
-                        dayPeriodColor: Colors.red,
-                        entryModeIconColor: Colors.white,
-                        hourMinuteColor: Color.fromARGB(255, 0, 0, 0),
-                      ),
-                    ),
-                    child: child!,
-                  );
-                },
-              );
-              if (time != null) {
-                final selected = DateTime(
-                  widget.match.scheduledTime.year,
-                  widget.match.scheduledTime.month,
-                  widget.match.scheduledTime.day,
-                  time.hour,
-                  time.minute,
-                );
-                widget.onTimeChanged(selected);
-              }
-            },
+            onTap: _showTimeWheelPicker,
             child: Container(
               padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 16),
               decoration: BoxDecoration(
