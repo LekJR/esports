@@ -404,7 +404,7 @@ class _DockIcon extends StatelessWidget {
     this.isActive = false,
   });
 
-  @override
+ @override
   Widget build(BuildContext context) {
     if (isActive) {
       return Container(

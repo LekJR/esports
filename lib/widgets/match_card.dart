@@ -23,7 +23,7 @@ class MatchCard extends StatefulWidget {
 }
 
 class _MatchCardState extends State<MatchCard> {
-  static const List<String> _topValorantTeams = [
+  static const List<String> _proTeams = [
     'G2',
     'NRG',
     'T1',
@@ -138,7 +138,7 @@ class _MatchCardState extends State<MatchCard> {
   }
 
   String? _dropdownValueFor(String team) {
-    if (_topValorantTeams.contains(team)) {
+    if (_proTeams.contains(team)) {
       return team;
     }
     return null;
@@ -181,7 +181,7 @@ class _MatchCardState extends State<MatchCard> {
         style: const TextStyle(color: Colors.white54),
       ),
       selectedItemBuilder: (context) {
-        return _topValorantTeams
+        return _proTeams
             .map(
               (team) => Center(
                 child: Text(
@@ -197,7 +197,7 @@ class _MatchCardState extends State<MatchCard> {
             )
             .toList();
       },
-      items: _topValorantTeams
+      items: _proTeams
           .map(
             (team) => DropdownMenuItem<String>(
               value: team,
