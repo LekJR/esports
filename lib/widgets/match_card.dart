@@ -36,11 +36,6 @@ class _MatchCardState extends State<MatchCard> {
     'MIB',
   ];
 
-  @override
-  void didUpdateWidget(covariant MatchCard oldWidget) {
-    super.didUpdateWidget(oldWidget);
-  }
-
   String get formattedTime {
     final time = TimeOfDay.fromDateTime(widget.match.scheduledTime);
     return time.format(context);
