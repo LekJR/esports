@@ -293,24 +293,13 @@ class _HomeScreenState extends State<HomeScreen> {
                   height: 1,
                   margin: const EdgeInsets.symmetric(horizontal: 26),
                   decoration: BoxDecoration(
-                    gradient: LinearGradient(
-                      colors: [
-                        Colors.transparent,
-                        Colors.white.withOpacity(0.24),
-                        Colors.transparent,
-                      ],
-                    ),
                   ),
                 ),
-                const SizedBox(height: 8),
                 const Row(
                   mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                   children: [
                     _DockIcon(icon: Icons.home_rounded),
-                    _DockIcon(
-                      icon: Icons.explore_rounded,
-                      isActive: true,
-                    ),
+                    _DockIcon(icon: Icons.explore_rounded, isActive: true),
                     _DockIcon(icon: Icons.person_rounded),
                   ],
                 ),
@@ -332,7 +321,10 @@ class _HomeScreenState extends State<HomeScreen> {
             gradient: LinearGradient(
               begin: Alignment.topCenter,
               end: Alignment.bottomCenter,
-              colors: [Color.fromARGB(255, 101, 0, 0), Color.fromARGB(255, 0, 0, 0)],
+              colors: [
+                Color.fromARGB(255, 101, 0, 0),
+                Color.fromARGB(255, 0, 0, 0),
+              ],
             ),
           ),
           child: Stack(
@@ -370,8 +362,9 @@ class _HomeScreenState extends State<HomeScreen> {
                                 topSpacing: 16,
                               ),
                             SliverPadding(
-                              padding:
-                                  const EdgeInsets.symmetric(horizontal: 16),
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 16,
+                              ),
                               sliver: SliverToBoxAdapter(
                                 child: const SizedBox(height: 132),
                               ),
@@ -399,12 +392,9 @@ class _DockIcon extends StatelessWidget {
   final IconData icon;
   final bool isActive;
 
-  const _DockIcon({
-    required this.icon,
-    this.isActive = false,
-  });
+  const _DockIcon({required this.icon, this.isActive = false});
 
- @override
+  @override
   Widget build(BuildContext context) {
     if (isActive) {
       return Container(
@@ -412,9 +402,7 @@ class _DockIcon extends StatelessWidget {
         decoration: BoxDecoration(
           color: Colors.white.withOpacity(0.09),
           borderRadius: BorderRadius.circular(18),
-          border: Border.all(
-            color: Colors.white.withOpacity(0.1),
-          ),
+          border: Border.all(color: Colors.white.withOpacity(0.1)),
           boxShadow: [
             BoxShadow(
               color: Colors.red.withOpacity(0.16),
@@ -423,19 +411,11 @@ class _DockIcon extends StatelessWidget {
             ),
           ],
         ),
-        child: Icon(
-          icon,
-          color: Colors.white,
-          size: 26,
-        ),
+        child: Icon(icon, color: Colors.white, size: 26),
       );
     }
 
-    return Icon(
-      icon,
-      color: Colors.white.withOpacity(0.72),
-      size: 26,
-    );
+    return Icon(icon, color: Colors.white.withOpacity(0.72), size: 26);
   }
 }
 
@@ -462,8 +442,8 @@ class _SectionHeaderDelegate extends SliverPersistentHeaderDelegate {
         ),
         borderRadius: BorderRadius.circular(0),
         border: Border(
-        top: BorderSide(color: Colors.white.withOpacity(0.02), width: 0.8),
-        bottom: BorderSide(color: Colors.white.withOpacity(0.05), width: 0.8),
+          top: BorderSide(color: Colors.white.withOpacity(0.02), width: 0.8),
+          bottom: BorderSide(color: Colors.white.withOpacity(0.05), width: 0.8),
         ),
       ),
       padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
