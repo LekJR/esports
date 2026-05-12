@@ -2,7 +2,7 @@
 
 A Flutter application for managing esports match reminders.
 
-## Features
+## Part One - Features
 
 - Add reminders for upcoming matches
 - Edit team names and match times
@@ -31,7 +31,7 @@ A Flutter application for managing esports match reminders.
 
 <img width="400" height="900" alt="localhost_56462_(iPhone XR) (1)" src="https://github.com/user-attachments/assets/6eb059ba-e90d-4139-855d-be243ba7076e" />
 
-## Backend
+## Part Two - Backend
 
 This project includes a Node.js/Express REST API in `backend/` with CRUD
 endpoints for matches and reminders. The MySQL schema is in
