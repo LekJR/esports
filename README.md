@@ -21,4 +21,9 @@ A Flutter application for managing esports match reminders.
 2. Run `flutter pub get`
 3. Run `flutter run`
 
-For help getting started with Flutter development, view the [online documentation](https://docs.flutter.dev/), which offers tutorials, samples, guidance on mobile development, and a full API reference.
+## Backend
+
+This project includes a Node.js/Express REST API in `backend/` with CRUD
+endpoints for matches and reminders. The MySQL schema is in
+`backend/sql/esports_schema.sql` and is designed for Railway MySQL.
+
