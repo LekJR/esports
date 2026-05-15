@@ -3,6 +3,7 @@ import 'dart:async';
 import 'dart:ui';
 import '../models/match_reminder.dart';
 import '../widgets/match_card.dart';
+import '../services/api_service.dart';
 import '../services/notification_service.dart';
 
 class HomeScreen extends StatefulWidget {
@@ -14,19 +15,23 @@ class HomeScreen extends StatefulWidget {
 
 class _HomeScreenState extends State<HomeScreen> {
   final List<MatchReminder> _matches = [];
-  int _nextId = 0;
+  final List<TeamOption> _teams = [];
   Timer? _timer;
   final ScrollController _scrollController = ScrollController();
   bool _isTitleVisible = true;
   double _lastScrollPosition = 0;
+  bool _isLoading = true;
+  bool _isSaving = false;
+  String? _errorMessage;
+  final ApiService _apiService = ApiService();
   final NotificationService _notificationService = NotificationService();
 
   @override
   void initState() {
     super.initState();
-    _addMatch();
     _startTimer();
     _initNotifications();
+    _loadMatches();
   }
 
   Future<void> _initNotifications() async {
@@ -64,13 +69,44 @@ class _HomeScreenState extends State<HomeScreen> {
     _lastScrollPosition = currentScrollPosition;
   }
 
-  void _addMatch() {
+  Future<void> _loadMatches() async {
     setState(() {
-      _matches.add(MatchReminder.empty(id: _nextId++));
+      _isLoading = true;
+      _errorMessage = null;
     });
+
+    try {
+      final teamsFuture = _apiService.fetchTeams();
+      final matchesFuture = _apiService.fetchMatchesWithReminders();
+      final teams = await teamsFuture;
+      final matches = await matchesFuture;
+
+      if (!mounted) {
+        return;
+      }
+
+      setState(() {
+        _teams
+          ..clear()
+          ..addAll(teams);
+        _matches
+          ..clear()
+          ..addAll(matches);
+        _isLoading = false;
+      });
+    } catch (error) {
+      if (!mounted) {
+        return;
+      }
+
+      setState(() {
+        _isLoading = false;
+        _errorMessage = error.toString();
+      });
+    }
   }
 
-  void _updateMatch(int id, MatchReminder updatedMatch) {
+  void _replaceMatch(int id, MatchReminder updatedMatch) {
     setState(() {
       final index = _matches.indexWhere((match) => match.id == id);
       if (index != -1) {
@@ -79,41 +115,213 @@ class _HomeScreenState extends State<HomeScreen> {
     });
   }
 
-  void _toggleNotification(MatchReminder match) {
-    final updatedMatch = match.copyWith(
-      notificationsEnabled: !match.notificationsEnabled,
-    );
-    _updateMatch(match.id, updatedMatch);
+  Future<void> _addMatch() async {
+    if (_teams.length < 2) {
+      _showError('Add at least two teams in the database first.');
+      return;
+    }
+    // Prompt user to choose a game first
+    List<GameOption> games;
+    try {
+      games = await _apiService.fetchGames();
+    } catch (error) {
+      _showError('Failed to load games.');
+      return;
+    }
 
-    if (updatedMatch.notificationsEnabled) {
-      _notificationService.scheduleMatchNotification(
-        updatedMatch.id,
-        updatedMatch.teamA,
-        updatedMatch.teamB,
-        updatedMatch.scheduledTime,
+    if (games.isEmpty) {
+      _showError('No games available.');
+      return;
+    }
+
+    final selectedGame = await showDialog<GameOption?>(
+      context: context,
+      builder: (ctx) => SimpleDialog(
+        backgroundColor: const Color(0xFF000000),
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(20),
+        ),
+        title: const Text(
+          'Select game',
+          style: TextStyle(
+            color: Colors.white,
+            fontWeight: FontWeight.bold,
+            fontSize: 18,
+          ),
+        ),
+        children: games
+            .map(
+              (g) => SimpleDialogOption(
+                onPressed: () => Navigator.pop(ctx, g),
+                child: Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.symmetric(
+                    vertical: 14,
+                    horizontal: 10,
+                  ),
+                  decoration: BoxDecoration(
+                    color: const Color.fromARGB(255, 101, 0, 0),
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: Text(
+                    g.name,
+                    style: const TextStyle(
+                      color: Colors.white70,
+                      fontSize: 16,
+                    ),
+                  ),
+                ),
+              ),
+            )
+            .toList(),
+      ),
+    );
+
+    if (selectedGame == null) {
+      return;
+    }
+
+    final gameTeams = _teams
+        .where((team) => team.gameId == selectedGame.id)
+        .toList();
+
+    if (gameTeams.length < 2) {
+      _showError('The selected game needs at least two teams.');
+      return;
+    }
+
+    await _save(() async {
+      final nextHour = DateTime.now().add(const Duration(hours: 1));
+      final scheduledTime = DateTime(
+        nextHour.year,
+        nextHour.month,
+        nextHour.day,
+        nextHour.hour,
       );
-    } else {
-      _notificationService.cancelNotification(updatedMatch.id);
+      final created = await _apiService.createMatch(
+        gameId: selectedGame.id,
+        teamAId: gameTeams[0].id,
+        teamBId: gameTeams[1].id,
+        scheduledTime: scheduledTime,
+      );
+
+      setState(() {
+        _matches.add(
+          created.copyWith(
+            teamA: gameTeams[0].shortName,
+            teamB: gameTeams[1].shortName,
+          ),
+        );
+      });
+    });
+  }
+
+  Future<void> _toggleNotification(MatchReminder match) async {
+    final nextEnabled = !match.notificationsEnabled;
+
+    await _save(() async {
+      final reminder = await _apiService.upsertReminder(
+        matchId: match.id,
+        notificationsEnabled: nextEnabled,
+      );
+      final updatedMatch = match.copyWith(
+        reminderId: reminder['id'] as int?,
+        notificationsEnabled: nextEnabled,
+      );
+      _replaceMatch(match.id, updatedMatch);
+
+      if (updatedMatch.notificationsEnabled) {
+        await _notificationService.scheduleMatchNotification(
+          updatedMatch.id,
+          updatedMatch.teamA,
+          updatedMatch.teamB,
+          updatedMatch.scheduledTime,
+        );
+      } else {
+        await _notificationService.cancelNotification(updatedMatch.id);
+      }
+    });
+  }
+
+  Future<void> _updateMatchTime(MatchReminder match, DateTime newTime) async {
+    final updatedMatch = match.copyWith(scheduledTime: newTime);
+    await _persistMatch(updatedMatch);
+  }
+
+  Future<void> _updateMatchTeam({
+    required MatchReminder match,
+    required TeamOption team,
+    required bool isTeamA,
+  }) async {
+    final otherTeamId = isTeamA ? match.teamBId : match.teamAId;
+    if (team.id == otherTeamId) {
+      _showError('Choose two different teams.');
+      return;
+    }
+
+    final updatedMatch = match.copyWith(
+      gameId: team.gameId,
+      teamAId: isTeamA ? team.id : match.teamAId,
+      teamBId: isTeamA ? match.teamBId : team.id,
+      teamA: isTeamA ? team.shortName : match.teamA,
+      teamB: isTeamA ? match.teamB : team.shortName,
+    );
+
+    await _persistMatch(updatedMatch);
+  }
+
+  Future<void> _persistMatch(MatchReminder updatedMatch) async {
+    await _save(() async {
+      final saved = await _apiService.updateMatch(updatedMatch);
+      final merged = saved.copyWith(
+        reminderId: updatedMatch.reminderId,
+        notificationsEnabled: updatedMatch.notificationsEnabled,
+      );
+      _replaceMatch(updatedMatch.id, merged);
+
+      if (merged.notificationsEnabled) {
+        await _notificationService.cancelNotification(merged.id);
+        await _notificationService.scheduleMatchNotification(
+          merged.id,
+          merged.teamA,
+          merged.teamB,
+          merged.scheduledTime,
+        );
+      }
+    });
+  }
+
+  Future<void> _save(Future<void> Function() action) async {
+    setState(() {
+      _isSaving = true;
+      _errorMessage = null;
+    });
+
+    try {
+      await action();
+    } catch (error) {
+      _showError(error.toString());
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isSaving = false;
+        });
+      }
     }
   }
 
-  void _updateMatchTime(MatchReminder match, DateTime newTime) {
-    final updatedMatch = match.copyWith(scheduledTime: newTime);
-    _updateMatch(match.id, updatedMatch);
-
-    if (updatedMatch.notificationsEnabled) {
-      _notificationService.cancelNotification(updatedMatch.id);
-      _notificationService.scheduleMatchNotification(
-        updatedMatch.id,
-        updatedMatch.teamA,
-        updatedMatch.teamB,
-        updatedMatch.scheduledTime,
-      );
+  void _showError(String message) {
+    if (!mounted) {
+      return;
     }
+
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(SnackBar(content: Text(message)));
   }
 
   Future<void> _refreshMatches() {
-    return Future.microtask(() => setState(() {}));
+    return _loadMatches();
   }
 
   List<MatchReminder> get _ongoingMatches {
@@ -209,12 +417,11 @@ class _HomeScreenState extends State<HomeScreen> {
           ),
           child: MatchCard(
             match: match,
-            onTeamAChanged: (value) {
-              _updateMatch(match.id, match.copyWith(teamA: value));
-            },
-            onTeamBChanged: (value) {
-              _updateMatch(match.id, match.copyWith(teamB: value));
-            },
+            teams: _teams,
+            onTeamAChanged: (team) =>
+                _updateMatchTeam(match: match, team: team, isTeamA: true),
+            onTeamBChanged: (team) =>
+                _updateMatchTeam(match: match, team: team, isTeamA: false),
             onTimeChanged: (newTime) => _updateMatchTime(match, newTime),
             onToggleNotification: () => _toggleNotification(match),
           ),
@@ -244,6 +451,39 @@ class _HomeScreenState extends State<HomeScreen> {
         if (bottomSpacing > 0)
           SliverToBoxAdapter(child: SizedBox(height: bottomSpacing)),
       ],
+    );
+  }
+
+  Widget _buildMessageSliver(String message, {bool showRetry = false}) {
+    return SliverFillRemaining(
+      hasScrollBody: false,
+      child: Center(
+        child: Padding(
+          padding: const EdgeInsets.all(24),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text(
+                message,
+                textAlign: TextAlign.center,
+                style: const TextStyle(
+                  color: Colors.white70,
+                  fontSize: 16,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+              if (showRetry) ...[
+                const SizedBox(height: 14),
+                TextButton.icon(
+                  onPressed: _loadMatches,
+                  icon: const Icon(Icons.refresh_rounded),
+                  label: const Text('Retry'),
+                ),
+              ],
+            ],
+          ),
+        ),
+      ),
     );
   }
 
@@ -292,8 +532,7 @@ class _HomeScreenState extends State<HomeScreen> {
                 Container(
                   height: 1,
                   margin: const EdgeInsets.symmetric(horizontal: 26),
-                  decoration: BoxDecoration(
-                  ),
+                  decoration: const BoxDecoration(),
                 ),
                 const Row(
                   mainAxisAlignment: MainAxisAlignment.spaceEvenly,
@@ -348,19 +587,39 @@ class _HomeScreenState extends State<HomeScreen> {
                           controller: _scrollController,
                           physics: const AlwaysScrollableScrollPhysics(),
                           slivers: [
-                            if (_ongoingMatches.isNotEmpty)
-                              _buildMatchSection(
-                                title: 'Ongoing matches',
-                                matches: _ongoingMatches,
-                                topSpacing: 16,
-                                bottomSpacing: 20,
-                              ),
-                            if (_upcomingMatches.isNotEmpty)
-                              _buildMatchSection(
-                                title: 'Upcoming matches',
-                                matches: _upcomingMatches,
-                                topSpacing: 16,
-                              ),
+                            if (_isLoading)
+                              const SliverFillRemaining(
+                                hasScrollBody: false,
+                                child: Center(
+                                  child: CircularProgressIndicator(
+                                    color: Colors.red,
+                                  ),
+                                ),
+                              )
+                            else if (_errorMessage != null)
+                              _buildMessageSliver(
+                                _errorMessage!,
+                                showRetry: true,
+                              )
+                            else if (_matches.isEmpty)
+                              _buildMessageSliver(
+                                'No matches yet. Add one to create it in the database.',
+                              )
+                            else ...[
+                              if (_ongoingMatches.isNotEmpty)
+                                _buildMatchSection(
+                                  title: 'Ongoing matches',
+                                  matches: _ongoingMatches,
+                                  topSpacing: 16,
+                                  bottomSpacing: 20,
+                                ),
+                              if (_upcomingMatches.isNotEmpty)
+                                _buildMatchSection(
+                                  title: 'Upcoming matches',
+                                  matches: _upcomingMatches,
+                                  topSpacing: 16,
+                                ),
+                            ],
                             SliverPadding(
                               padding: const EdgeInsets.symmetric(
                                 horizontal: 16,
@@ -380,6 +639,19 @@ class _HomeScreenState extends State<HomeScreen> {
                 alignment: Alignment.bottomCenter,
                 child: _buildBottomDock(),
               ),
+              if (_isSaving)
+                const Positioned(
+                  top: 12,
+                  right: 18,
+                  child: SizedBox(
+                    width: 22,
+                    height: 22,
+                    child: CircularProgressIndicator(
+                      strokeWidth: 2.4,
+                      color: Colors.white,
+                    ),
+                  ),
+                ),
             ],
           ),
         ),
