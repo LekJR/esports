@@ -15,7 +15,7 @@ class ApiException implements Exception {
 }
 
 class ApiService {
-  static const _configuredBaseUrl = String.fromEnvironment('API_BASE_URL');
+  static const _configuredBaseUrl = String.fromEnvironment('https://esports-production-422e.up.railway.app/');
   static const _deviceId = String.fromEnvironment(
     'DEVICE_ID',
     defaultValue: 'demo-device',
